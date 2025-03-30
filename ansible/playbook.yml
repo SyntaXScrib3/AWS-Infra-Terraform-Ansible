@@ -1,0 +1,10 @@
+---
+- name: Configure and deploy the Flask application
+  hosts: all
+  become: yes
+
+  roles:
+    - role: common
+    - role: redis
+    - role: flaskapp
+    - role: nginx

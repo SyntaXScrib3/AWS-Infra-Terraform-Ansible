@@ -1,0 +1,102 @@
+stages:
+  - build
+  - validate
+  - plan
+  - apply
+  - configure
+  - destroy
+
+default:
+  tags:
+    - dev-infra
+
+variables:
+  TERRAFORM_ROOT: "terraform"
+  ANSIBLE_ROOT: "ansible"
+
+.terraform-vars:
+  variables:
+    TF_VAR_alerts_email: "${ALERTS_EMAIL}"
+    TF_VAR_aws_region: "${AWS_DEFAULT_REGION}"
+
+.terraform-init: &terraform-init
+  - cd $TERRAFORM_ROOT
+  - terraform init
+
+build:
+  stage: build
+
+  script:
+    - mkdir -p ~/.ssh
+    - rm -f ~/.ssh/ec2-ssh-key.pem || true
+    - echo "$SSH_PRIVATE_KEY" > ~/.ssh/ec2-ssh-key.pem
+    - chmod 400 ~/.ssh/ec2-ssh-key.pem
+
+validate:
+  stage: validate
+
+  extends:
+    - .terraform-vars
+
+  script:
+    - *terraform-init
+    - terraform fmt -check
+    - terraform validate
+
+plan:
+  stage: plan
+
+  extends:
+    - .terraform-vars
+
+  script:
+    - *terraform-init
+    - terraform plan -out=tfplan
+
+  artifacts:
+    name: "tfplan"
+    paths:
+      - $TERRAFORM_ROOT/tfplan
+
+apply:
+  stage: apply
+
+  extends:
+    - .terraform-vars
+
+  script:
+    - *terraform-init
+    - terraform apply -auto-approve
+    - echo -e "\n-------------------- Get Privete IP of New EC2 instance --------------------\n"
+    - IP=$(terraform output -raw ec2_private_ip)
+    - ssh-keygen -R $IP || true
+
+  dependencies:
+    - plan
+
+  when: manual
+
+configure:
+  stage: configure
+
+  needs:
+    - job: apply
+
+  script:
+    - cd $ANSIBLE_ROOT
+    - sudo rsync -av --delete . /etc/ansible/
+    - cd /etc/ansible
+    - ansible --version
+    - ansible-playbook -i inventory/aws_ec2.yml playbook.yml
+
+destroy:
+  stage: destroy
+
+  extends:
+    - .terraform-vars
+
+  script:
+    - *terraform-init
+    - terraform destroy -auto-approve
+
+  when: manual

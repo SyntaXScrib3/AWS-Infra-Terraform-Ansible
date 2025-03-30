@@ -1,0 +1,10 @@
+- name: Update apt cache
+  apt:
+    update_cache: yes
+    force_apt_get: yes
+
+- name: Install common packages
+  apt:
+    name:
+      - git
+    state: present

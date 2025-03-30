@@ -1,0 +1,8 @@
+app_dir: "/home/ubuntu/academy-demo"
+repo_url: "https://gitlab.com/devops-infra-ioane-devdariani/academy-demo.git"
+venv_dir: "/home/ubuntu/academy-demo/venv"
+app_host: "0.0.0.0"
+app_port: 5000
+redis_host: "127.0.0.1"
+redis_port: 6379
+app_debug: "False"
